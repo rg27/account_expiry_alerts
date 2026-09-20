@@ -37,6 +37,12 @@ const ALERT_META = {
     }
 };
 
+// Items that are "due" rather than "expire". Anything not listed says "Expires".
+const DATE_LABELS = {
+    corporate_tax: "Due",
+    vat_return: "Due"
+};
+
 const DEFAULT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.29 3.86l-8.18 14.18A1.5 1.5 0 0 0 3.4 20.4h17.2a1.5 1.5 0 0 0 1.29-2.36L13.71 3.86a1.5 1.5 0 0 0-2.42 0z"></path></svg>';
 
 // Track the current account so the "View all notes" button knows who to fetch for.
@@ -47,9 +53,9 @@ let notesCache = null;
 let notesCacheAccountId = null;
 
 /**
- * Processes the alert payload (from either PageLoad or Notify) and
+ * Processes the payload (from either PageLoad or Notify) and
  * updates all the widget's UI sections: badges, important info panel,
- * and the sorted alert list.
+ * and the sorted date list.
  */
 function processPayload(payloadData) {
     const alerts = Array.isArray(payloadData?.alerts) ? payloadData.alerts : (Array.isArray(payloadData) ? payloadData : []);
@@ -91,7 +97,8 @@ function processPayload(payloadData) {
         };
     }
 
-    alerts.sort((a, b) => Number(b.days_overdue) - Number(a.days_overdue));
+    // Most overdue first (most negative days_left), then soonest upcoming.
+    alerts.sort((a, b) => Number(a.days_left) - Number(b.days_left));
 
     renderAlerts(alerts);
 }
@@ -127,7 +134,7 @@ ZOHO.embeddedApp.on("PageLoad", async (entity) => {
 /**
  * Fires when Client Script calls:
  *   flyout.notify({ data: {...} }, { wait: false })
- * This is how the real alert data arrives after the flyout has
+ * This is how the real data arrives after the flyout has
  * already been shown with the loading spinner.
  */
 ZOHO.embeddedApp.on("Notify", (data) => {
@@ -175,12 +182,16 @@ function renderAlerts(alerts) {
 }
 
 function buildRowHtml(alert) {
-    const meta = ALERT_META[alert.key] || { label: alert.title || "Alert", icon: DEFAULT_ICON };
+    const meta = ALERT_META[alert.key] || { label: alert.title || "Date", icon: DEFAULT_ICON };
     const title = alert.title || meta.label;
-    const message = alert.message || "";
+    const message = alert.message || "";          // only present when expired
     const sev = alert.severity || "ok";
     const dateLabel = formatDate(alert.expiry_date);
-    const overdueLabel = overdueText(alert.days_overdue);
+    const statusLabel = statusText(alert.days_left);
+
+    const dateWord = alert.status === "expired"
+        ? "Expired"
+        : (DATE_LABELS[alert.key] || "Expires");
 
     return `
         <div class="alert-row sev-${sev}">
@@ -189,10 +200,10 @@ function buildRowHtml(alert) {
                 <div class="alert-row-top">
                     <span class="alert-title">${escapeHtml(title)}</span>
                 </div>
-                <p class="alert-message">${escapeHtml(message)}</p>
+                ${message ? `<p class="alert-message">${escapeHtml(message)}</p>` : ""}
                 <div class="alert-row-bottom">
-                    <span class="alert-date">Due: ${dateLabel}</span>
-                    <span class="alert-badge">${overdueLabel}</span>
+                    <span class="alert-date">${dateWord}: ${dateLabel}</span>
+                    <span class="alert-badge">${statusLabel}</span>
                 </div>
             </div>
         </div>
@@ -215,12 +226,19 @@ function formatDateTime(rawDate) {
     return `${datePart} · ${timePart}`;
 }
 
-function overdueText(daysOverdue) {
-    const n = Number(daysOverdue);
-    if (isNaN(n) || n < 0) return "Due today";
+/**
+ * days_left is signed: negative = overdue, 0 = today, positive = days remaining.
+ */
+function statusText(daysLeft) {
+    const n = Number(daysLeft);
+    if (isNaN(n)) return "—";
+    if (n < 0) {
+        const overdue = Math.abs(n);
+        return overdue === 1 ? "1 day overdue" : `${overdue} days overdue`;
+    }
     if (n === 0) return "Due today";
-    if (n === 1) return "1 day overdue";
-    return `${n} days overdue`;
+    if (n === 1) return "1 day left";
+    return `${n} days left`;
 }
 
 function escapeHtml(str) {
@@ -251,7 +269,7 @@ function showPopup(titleText, message, type = "error") {
 }
 
 /* ===========================================================
-   ALL NOTES / IMPORTANT INFO LOG VIEW
+   ALL NOTES / IMPORTANT INFO LOG VIEW  (unchanged)
    =========================================================== */
 
 function showNotesView() {
