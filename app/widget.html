@@ -8,7 +8,7 @@
   </head>
   <body>
 
-    <div id="loader-overlay" class="loader-overlay hidden">
+    <div id="loader-overlay" class="loader-overlay">
       <div class="spinner-wrap">
         <div class="spinner-track"></div>
         <div class="spinner-arc"></div>
@@ -53,7 +53,19 @@
         </div>
       </div>
 
-      <div id="alert-list" class="alert-list"></div>
+      <div id="alert-list" class="alert-list">
+        <!-- Date rows (Trade License, Immigration Card, ...) -->
+        <div id="alert-rows" class="alert-rows"></div>
+        <!-- Expired-but-still-Issued Residence Visas (shown after all the dates, hidden when 0) -->
+        <div id="rv-section" class="rv-section hidden"></div>
+        <!-- Outstanding Receivables (last item, after the Residence Visa row; hidden when the balance is 0) -->
+        <div id="receivables-section" class="receivables-section hidden"></div>
+        <!-- Shown only while the Residence Visa / receivables checks are still running -->
+        <div id="checks-loading" class="checks-loading hidden">
+          <span class="mini-spinner"></span>
+          <span>Checking Residence Visas and receivables...</span>
+        </div>
+      </div>
 
       <div id="empty-state" class="empty-state hidden">
         <p class="empty-title">No expiry alerts</p>

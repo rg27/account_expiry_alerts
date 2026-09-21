@@ -10,6 +10,20 @@ const SELECTORS = {
 // (get_all_account_important_info) — check the function's API Name field.
 const GET_ALL_NOTES_FUNCTION_NAME = "get_all_account_important_info";
 
+// Same note as above: use the function's API Name from Developer Space > Functions.
+// Returns { rv_count: <number> } = Residence Visas that are still "Issued"
+// but whose Expiry Date has already passed.
+const GET_EXPIRED_RV_FUNCTION_NAME = "get_expired_issued_rv";
+
+// TODO: set to the API Name of your Outstanding Receivables function.
+// It receives { account_id } and should return the balance, either as a plain
+// number (e.g. 1234.5) or as a Map like { "outstanding_receivables": 1234.5 }.
+const GET_OUTSTANDING_RECEIVABLES_FUNCTION_NAME = "get_outstanding_receivables";
+
+// TODO: if your function returns a Map, this is the key that holds the amount.
+// (If the Map has only one numeric value, it is picked up even if the key differs.)
+const RECEIVABLES_KEY = "outstanding_receivables";
+
 const ALERT_META = {
     trade_license: {
         label: "Trade License",
@@ -45,12 +59,72 @@ const DATE_LABELS = {
 
 const DEFAULT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.29 3.86l-8.18 14.18A1.5 1.5 0 0 0 3.4 20.4h17.2a1.5 1.5 0 0 0 1.29-2.36L13.71 3.86a1.5 1.5 0 0 0-2.42 0z"></path></svg>';
 
+// Passport-style icon for the Residence Visa row.
+const RV_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"></path><circle cx="11" cy="10" r="2.5"></circle><path d="M8 16h6"></path></svg>';
+
+// Banknote icon for the Outstanding Receivables footer.
+const RECEIVABLES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 10v.01M18 14v.01"></path></svg>';
+
 // Track the current account so the "View all notes" button knows who to fetch for.
 let currentAccountId = null;
 
 // Cache the fetched notes per account so re-opening the log view doesn't refetch.
 let notesCache = null;
 let notesCacheAccountId = null;
+
+// Guards the Residence Visa check: if the widget receives a newer account
+// while an older request is still running, the older result is ignored.
+let rvRequestId = 0;
+
+// Same guard for the Outstanding Receivables check.
+let receivablesRequestId = 0;
+
+// ---- Loading state --------------------------------------------------------
+let alertsRendered = false;       // true once the date list has been drawn
+let pendingChecks = 0;            // Residence Visa / Receivables checks still running
+let earlyChecksAccountId = null;  // checks already started from the initial "loading" payload
+
+/** Small inline "Checking..." line, shown only while a background check is still running. */
+function updateChecksLoading() {
+    const el = document.getElementById("checks-loading");
+    if (el) el.classList.toggle("hidden", !(alertsRendered && pendingChecks > 0));
+}
+
+/**
+ * "No expiry alerts" is only shown once the date list is drawn, both
+ * background checks have finished, and there is nothing at all to display.
+ */
+function refreshEmptyState() {
+    const emptyState = document.getElementById("empty-state");
+    if (!emptyState) return;
+
+    const hasRows = document.getElementById("alert-rows").children.length > 0;
+    const hasRv = !!document.querySelector("#rv-section .alert-row");
+    const hasReceivables = !!document.querySelector("#receivables-section .alert-row");
+
+    const showEmpty = alertsRendered && pendingChecks === 0 && !hasRows && !hasRv && !hasReceivables;
+    emptyState.classList.toggle("hidden", !showEmpty);
+}
+
+/** Called when one of the two background checks completes (success or failure). */
+function finishCheck() {
+    pendingChecks = Math.max(0, pendingChecks - 1);
+    updateChecksLoading();
+    refreshEmptyState();
+}
+
+/** Starts the Residence Visa and Outstanding Receivables checks in parallel. */
+function startAccountChecks(accountId) {
+    if (!accountId) {
+        pendingChecks = 0;
+        updateChecksLoading();
+        return;
+    }
+    pendingChecks = 2;
+    updateChecksLoading();
+    loadExpiredResidenceVisas(accountId);
+    loadOutstandingReceivables(accountId);
+}
 
 /**
  * Processes the payload (from either PageLoad or Notify) and
@@ -100,6 +174,13 @@ function processPayload(payloadData) {
     // Most overdue first (most negative days_left), then soonest upcoming.
     alerts.sort((a, b) => Number(a.days_left) - Number(b.days_left));
 
+    // The Residence Visa and receivables checks run in the background so the date
+    // list appears immediately. If they were already started from the initial
+    // "loading" payload (see PageLoad below), don't start them a second time.
+    const alreadyStarted = earlyChecksAccountId !== null && earlyChecksAccountId === currentAccountId;
+    earlyChecksAccountId = null;
+    if (!alreadyStarted) startAccountChecks(currentAccountId);
+
     renderAlerts(alerts);
 }
 
@@ -117,14 +198,25 @@ ZOHO.embeddedApp.on("PageLoad", async (entity) => {
     const loader = document.getElementById("loader-overlay");
     if (loader) loader.classList.remove("hidden");
 
+    // New load: forget the previous account's state.
+    alertsRendered = false;
+    earlyChecksAccountId = null;
+
     try {
         const payloadData = entity && entity.data ? entity.data : entity;
 
         if (payloadData && payloadData.loading === false) {
             processPayload(payloadData);
             if (loader) loader.classList.add("hidden");
+        } else if (payloadData && payloadData.account_id) {
+            // The Client Script opened the flyout straight away and is still
+            // fetching the account. Start the Residence Visa / receivables checks
+            // now so they run in parallel with that fetch.
+            currentAccountId = payloadData.account_id;
+            earlyChecksAccountId = payloadData.account_id;
+            startAccountChecks(payloadData.account_id);
         }
-        // else: stay on the loader until the "Notify" event arrives
+        // In the loading case, stay on the loader until the "Notify" event delivers the account data.
     } catch (err) {
         if (loader) loader.classList.add("hidden");
         showPopup("Data Fetch Error", err.message, "error");
@@ -165,20 +257,15 @@ function closeWidget() {
 }
 
 function renderAlerts(alerts) {
-    const list = document.getElementById("alert-list");
-    const emptyState = document.getElementById("empty-state");
+    const list = document.getElementById("alert-rows");
     const countEl = document.getElementById("alert-count");
 
     countEl.textContent = alerts.length;
+    list.innerHTML = alerts.length ? alerts.map(buildRowHtml).join("") : "";
 
-    if (!alerts.length) {
-        list.innerHTML = "";
-        emptyState.classList.remove("hidden");
-        return;
-    }
-
-    emptyState.classList.add("hidden");
-    list.innerHTML = alerts.map(buildRowHtml).join("");
+    alertsRendered = true;
+    updateChecksLoading();
+    refreshEmptyState();
 }
 
 function buildRowHtml(alert) {
@@ -266,6 +353,294 @@ function showPopup(titleText, message, type = "error") {
         iconDiv.className = "status-icon status-icon--error";
         iconDiv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>';
     }
+}
+
+/* ===========================================================
+   EXPIRED RESIDENCE VISAS
+   Residence Visas that are still "Issued" but whose Expiry Date
+   has already passed. Shown below the date list; hidden when 0.
+   =========================================================== */
+
+/**
+ * Calls the Deluge standalone function and renders the result.
+ * Never throws: a failure only shows a small muted note, so it can't
+ * break the rest of the widget.
+ */
+async function loadExpiredResidenceVisas(accountId) {
+    const section = document.getElementById("rv-section");
+    if (!section) return;
+
+    const requestId = ++rvRequestId;
+
+    // Reset first so a previous account's result never lingers.
+    section.innerHTML = "";
+    section.classList.add("hidden");
+
+    if (!accountId) return;
+
+    try {
+        const reqData = {
+            arguments: JSON.stringify({
+                account_id: accountId
+            })
+        };
+
+        const response = await ZOHO.CRM.FUNCTIONS.execute(GET_EXPIRED_RV_FUNCTION_NAME, reqData);
+
+        // A newer account was loaded while we were waiting — drop this result.
+        if (requestId !== rvRequestId) return;
+
+        const count = parseRvCount(extractFunctionOutput(response));
+        if (count === null) {
+            throw new Error("Unexpected response: " + JSON.stringify(response));
+        }
+
+        renderRvSection(count);
+    } catch (err) {
+        if (requestId !== rvRequestId) return;
+        console.error("Failed to load expired Residence Visas:", err);
+        section.innerHTML = '<p class="rv-note">Couldn\u2019t check Residence Visa status right now.</p>';
+        section.classList.remove("hidden");
+    } finally {
+        // Only the latest request counts as finished; older ones were superseded.
+        if (requestId === rvRequestId) finishCheck();
+    }
+}
+
+/**
+ * Same wrapper logic as the notes function: the payload is usually in
+ * response.details.output, but fall back to other common shapes.
+ */
+function extractFunctionOutput(response) {
+    if (response && response.details && response.details.output !== undefined) {
+        return response.details.output;
+    }
+    if (response && response.output !== undefined) {
+        return response.output;
+    }
+    return response;
+}
+
+/**
+ * The Deluge function is declared to return a string but returns a Map,
+ * so the output usually arrives as text like {"rv_count":2}. Handles
+ * that plus a plain object or number. Returns null if rv_count can't
+ * be found, so the caller can show the error note instead of a wrong 0.
+ */
+function parseRvCount(rawOutput) {
+    if (rawOutput === null || rawOutput === undefined) return null;
+
+    if (typeof rawOutput === "number") return rawOutput;
+
+    if (typeof rawOutput === "object") {
+        const n = Number(rawOutput.rv_count);
+        return isNaN(n) ? null : n;
+    }
+
+    if (typeof rawOutput === "string") {
+        try {
+            const parsed = JSON.parse(rawOutput);
+            const n = Number(parsed && parsed.rv_count);
+            if (!isNaN(n)) return n;
+        } catch (e) {
+            // not JSON — fall through to the pattern match below
+        }
+        const m = /rv_count["']?\s*[:=]\s*"?(\d+)/.exec(rawOutput);
+        return m ? Number(m[1]) : null;
+    }
+
+    return null;
+}
+
+function renderRvSection(count) {
+    const section = document.getElementById("rv-section");
+    if (!section) return;
+
+    if (!count || count < 1) {
+        section.innerHTML = "";
+        section.classList.add("hidden");
+        return;
+    }
+
+    section.innerHTML = buildRvRowHtml(count);
+    section.classList.remove("hidden");
+}
+
+function buildRvRowHtml(count) {
+    const message = count === 1
+        ? "1 Residence Visa has expired but is still marked as \u201CIssued\u201D."
+        : `${count} Residence Visas have expired but are still marked as \u201CIssued\u201D.`;
+
+    return `
+        <div class="alert-row sev-urgent">
+            <div class="alert-icon">${RV_ICON}</div>
+            <div class="alert-body">
+                <div class="alert-row-top">
+                    <span class="alert-title">Residence Visa Status</span>
+                </div>
+                <p class="alert-message">${message}</p>
+                <div class="alert-row-bottom">
+                    <span class="alert-date">Expired but still \u201CIssued\u201D</span>
+                    <span class="alert-badge">${count} to review</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/* ===========================================================
+   OUTSTANDING RECEIVABLES
+   Last item in the list, after the Residence Visa row (if any).
+   Shown in AED with 2 decimals; hidden completely when the balance is 0.
+   =========================================================== */
+
+/**
+ * Calls the Deluge standalone function and renders the result.
+ * Never throws: a failure only shows a small muted note.
+ */
+async function loadOutstandingReceivables(accountId) {
+    const section = document.getElementById("receivables-section");
+    if (!section) return;
+
+    const requestId = ++receivablesRequestId;
+
+    // Reset first so a previous account's balance never lingers.
+    section.innerHTML = "";
+    section.classList.add("hidden");
+
+    if (!accountId) return;
+
+    try {
+        const reqData = {
+            arguments: JSON.stringify({
+                account_id: accountId
+            })
+        };
+
+        const response = await ZOHO.CRM.FUNCTIONS.execute(GET_OUTSTANDING_RECEIVABLES_FUNCTION_NAME, reqData);
+
+        // A newer account was loaded while we were waiting — drop this result.
+        if (requestId !== receivablesRequestId) return;
+
+        const amount = parseReceivablesAmount(extractFunctionOutput(response));
+        if (amount === null) {
+            throw new Error("Unexpected response: " + JSON.stringify(response));
+        }
+
+        renderReceivablesSection(amount);
+    } catch (err) {
+        if (requestId !== receivablesRequestId) return;
+        console.error("Failed to load outstanding receivables:", err);
+        section.innerHTML = '<p class="rv-note">Couldn\u2019t check outstanding receivables right now.</p>';
+        section.classList.remove("hidden");
+    } finally {
+        // Only the latest request counts as finished; older ones were superseded.
+        if (requestId === receivablesRequestId) finishCheck();
+    }
+}
+
+/** Number, or numeric text like "1234.5" / "1,234.50". Anything else -> NaN. */
+function toNumber(v) {
+    if (typeof v === "number") return isFinite(v) ? v : NaN;
+    if (typeof v === "string" && v.trim() !== "") return Number(v.replace(/,/g, ""));
+    return NaN;
+}
+
+/**
+ * Reads the amount from an object: uses RECEIVABLES_KEY if present,
+ * otherwise accepts the object if it holds exactly one numeric value.
+ */
+function amountFromObject(obj) {
+    if (!obj || typeof obj !== "object") return null;
+
+    if (obj[RECEIVABLES_KEY] !== undefined) {
+        const n = toNumber(obj[RECEIVABLES_KEY]);
+        return isNaN(n) ? null : n;
+    }
+
+    const nums = Object.values(obj).map(toNumber).filter((n) => !isNaN(n));
+    return nums.length === 1 ? nums[0] : null;
+}
+
+/**
+ * Accepts a plain number, numeric text, a JSON/Map object, or text like
+ * {"outstanding_receivables":1234.5} / {outstanding_receivables=1234.5}.
+ * Returns null if no amount can be found, so the caller shows the error
+ * note instead of a wrong 0.
+ */
+function parseReceivablesAmount(rawOutput) {
+    if (rawOutput === null || rawOutput === undefined) return null;
+
+    if (typeof rawOutput === "object") return amountFromObject(rawOutput);
+
+    const direct = toNumber(rawOutput);
+    if (!isNaN(direct)) return direct;
+
+    if (typeof rawOutput === "string") {
+        try {
+            const parsed = JSON.parse(rawOutput);
+            if (parsed && typeof parsed === "object") return amountFromObject(parsed);
+        } catch (e) {
+            // not JSON — fall through to the pattern match below
+        }
+        const m = new RegExp(RECEIVABLES_KEY + "[\"']?\\s*[:=]\\s*\"?(-?[\\d.,]+)").exec(rawOutput);
+        if (m) {
+            const n = toNumber(m[1]);
+            return isNaN(n) ? null : n;
+        }
+    }
+
+    return null;
+}
+
+/** 1234.5 -> "AED 1,234.50" */
+function formatAed(amount) {
+    return "AED " + amount.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function renderReceivablesSection(amount) {
+    const section = document.getElementById("receivables-section");
+    if (!section) return;
+
+    // Round to 2 decimals first so something like 0.004 counts as 0 and stays hidden.
+    const rounded = Math.round(amount * 100) / 100;
+
+    if (rounded === 0) {
+        section.innerHTML = "";
+        section.classList.add("hidden");
+        return;
+    }
+
+    section.innerHTML = buildReceivablesRowHtml(rounded);
+    section.classList.remove("hidden");
+}
+
+function buildReceivablesRowHtml(amount) {
+    // Negative balance = the client has overpaid / has a credit with us.
+    const isCredit = amount < 0;
+    const message = isCredit
+        ? "This account has a credit balance."
+        : "There is an unpaid balance on this account.";
+    const label = isCredit ? "Credit balance" : "Amount due";
+
+    return `
+        <div class="alert-row sev-warn">
+            <div class="alert-icon">${RECEIVABLES_ICON}</div>
+            <div class="alert-body">
+                <div class="alert-row-top">
+                    <span class="alert-title">Outstanding Receivables</span>
+                </div>
+                <p class="alert-message">${message}</p>
+                <div class="alert-row-bottom">
+                    <span class="alert-date">${label}</span>
+                    <span class="alert-badge alert-badge--amount">${formatAed(amount)}</span>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 /* ===========================================================
