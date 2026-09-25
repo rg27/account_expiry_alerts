@@ -23,7 +23,6 @@
 
       <div class="widget-header">
         <div class="header-main-info">
-          <span id="alert-count" class="stat-number">--</span>
           <span class="stat-label">Expiry Alerts</span>
           <span class="header-divider">•</span>
           <span id="clientTypeBadge" class="client-badge hidden" tabindex="0"
@@ -31,6 +30,10 @@
 <span id="standardClientBadge" class="client-badge client-badge--standard hidden" tabindex="0"
       data-tooltip="Direct Client account. Send all communication for this company directly to the client.">Direct Client</span>
         </div>
+        <span id="headerReceivablesBadge" class="header-receivables-badge hidden" title="Outstanding receivables">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path><path d="M7 15h3"></path></svg>
+          <span id="headerReceivablesAmount"></span>
+        </span>
         <button type="button" class="header-close-btn" onclick="closeWidget()" title="Close Flyout">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -53,19 +56,19 @@
         </div>
       </div>
 
-      <div id="alert-list" class="alert-list">
-        <!-- Date rows (Trade License, Immigration Card, ...) -->
-        <div id="alert-rows" class="alert-rows"></div>
-        <!-- Expired-but-still-Issued Residence Visas (shown after all the dates, hidden when 0) -->
-        <div id="rv-section" class="rv-section hidden"></div>
-        <!-- Outstanding Receivables (last item, after the Residence Visa row; hidden when the balance is 0) -->
-        <div id="receivables-section" class="receivables-section hidden"></div>
-        <!-- Shown only while the Residence Visa / receivables checks are still running -->
-        <div id="checks-loading" class="checks-loading hidden">
-          <span class="mini-spinner"></span>
-          <span>Checking Residence Visas and receivables...</span>
-        </div>
+     <div id="alert-list" class="alert-list">
+      <!-- Date rows (Trade License, Immigration Card, ...) -->
+      <div id="alert-rows" class="alert-rows"></div>
+      <!-- Expired-but-still-Issued Residence Visas -->
+      <div id="rv-section" class="rv-section hidden"></div>
+      <!-- Outstanding Receivables (now styled uniformly as an alert row) -->
+      <div id="receivables-section" class="receivables-section hidden"></div>
+      <!-- Shown only while checks are still running -->
+      <div id="checks-loading" class="checks-loading hidden">
+        <span class="mini-spinner"></span>
+        <span>Checking Residence Visas and receivables...</span>
       </div>
+    </div>
 
       <div id="empty-state" class="empty-state hidden">
         <p class="empty-title">No expiry alerts</p>

@@ -124,6 +124,8 @@ body {
     letter-spacing: 0.03em;
     text-transform: uppercase;
     margin-left: 4px;
+    position: relative;
+    cursor: help;
 }
 
 .client-badge--standard {
@@ -263,14 +265,24 @@ body {
     gap: 8px;
 }
 
+.alert-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.alert-rows:empty {
+    display: none;
+}
+
 .alert-row {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-left: 4px solid #CBD5E1;
     border-radius: 6px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: flex-start;
 }
 
@@ -328,14 +340,14 @@ body {
 
 .alert-title {
     font-weight: 600;
-    font-size: 11.5px;
+    font-size: 11px;
     color: #0F172A;
 }
 
 .alert-message {
-    font-size: 11px;
+    font-size: 10.5px;
     color: #475569;
-    margin: 0 0 6px 0;
+    margin: 0 0 5px 0;
     line-height: 1.35;
 }
 
@@ -346,12 +358,12 @@ body {
 }
 
 .alert-date {
-    font-size: 10px;
+    font-size: 9.5px;
     color: #64748B;
 }
 
 .alert-badge {
-    font-size: 9.5px;
+    font-size: 8.8px;
     font-weight: 600;
     padding: 1px 6px;
     border-radius: 10px;
@@ -397,7 +409,7 @@ body {
     margin: 0;
 }
 
-/* ===== ALL NOTES LOG VIEW (Optimized Stacked Timeline for Narrow Windows) ===== */
+/* ===== ALL NOTES LOG VIEW ===== */
 
 .notes-view {
     display: flex;
@@ -461,7 +473,6 @@ body {
     z-index: 20;
 }
 
-/* Full-width scrolling list with left-aligned vertical spine */
 .notes-list {
     flex: 1;
     overflow-y: auto;
@@ -470,7 +481,6 @@ body {
     position: relative;
 }
 
-/* Continuous vertical timeline track on the left */
 .notes-list::before {
     content: '';
     position: absolute;
@@ -487,11 +497,10 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Stacked Card Item */
 .note-card {
     position: relative;
     margin-bottom: 16px;
-    margin-left: 28px; /* Offset to make room for the vertical spine track */
+    margin-left: 28px;
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-radius: 10px;
@@ -507,7 +516,6 @@ body {
     border-color: #CBD5E1;
 }
 
-/* Timeline dot connecting to the left track */
 .note-card::before {
     content: '';
     position: absolute;
@@ -522,7 +530,6 @@ body {
     z-index: 3;
 }
 
-/* Highlighted Current Card */
 .note-card.is-current {
     background: #FFFFFF;
     border: 1.5px solid #3B82F6;
@@ -612,13 +619,6 @@ body {
     margin: 0;
 }
 
-/* ===== CLIENT TYPE BADGE TOOLTIP (append to the end of index.css) ===== */
-
-.client-badge {
-    position: relative;
-    cursor: help;
-}
-
 /* Tooltip bubble */
 .client-badge::after {
     content: attr(data-tooltip);
@@ -636,7 +636,7 @@ body {
     font-weight: 500;
     line-height: 1.4;
     letter-spacing: normal;
-    text-transform: none;   /* the badge itself is uppercase; don't inherit it */
+    text-transform: none;
     text-align: left;
     white-space: normal;
     opacity: 0;
@@ -647,7 +647,6 @@ body {
     z-index: 1000;
 }
 
-/* Little arrow pointing up at the badge */
 .client-badge::before {
     content: "";
     position: absolute;
@@ -679,62 +678,6 @@ body {
     visibility: visible;
 }
 
-/* ===== EXPIRED RESIDENCE VISAS (append to the end of index.css) ===== */
-
-/* The date rows now live in their own wrapper inside .alert-list */
-.alert-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.alert-rows:empty {
-    display: none;
-}
-
-
-
-/* Small muted line used if the check fails */
-.rv-note {
-    margin: 0;
-    font-size: 10.5px;
-    color: #94A3B8;
-    text-align: center;
-}
-
-/* ===== OUTSTANDING RECEIVABLES (append to the end of index.css) ===== */
-
-/* Pinned to the very bottom of the flyout, outside the scrolling list */
-.receivables-footer {
-    flex-shrink: 0;
-    padding: 10px 12px 12px;
-    background: #FFFFFF;
-    border-top: 1px solid #E2E8F0;
-    box-shadow: 0 -2px 6px rgba(15, 23, 42, 0.05);
-}
-
-.receivables-footer .alert-message {
-    margin-bottom: 0;
-}
-
-/* Amount shown on the right of the title line, e.g. "AED 12,345.00" */
-.receivable-amount {
-    font-size: 13px;
-    font-weight: 700;
-    color: #92400E;
-    white-space: nowrap;
-    margin-left: 10px;
-}
-
-.alert-badge--amount {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-}
- 
-/* ===== "STILL CHECKING" LINE (append to the end of index.css) ===== */
-
-/* Small line at the end of the list while Residence Visa / receivables are still loading */
 .checks-loading {
     display: flex;
     align-items: center;
@@ -751,5 +694,130 @@ body {
     border: 2px solid #E2E8F0;
     border-top-color: #2563EB;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;   /* "spin" keyframes already exist in index.css */
+    animation: spin 0.8s linear infinite;
+}
+
+:root {
+    --ink: #172033;
+    --canvas: #F6F8FB;
+    --line: #E7EAF0;
+    --teal: #0F766E;
+    --teal-soft: #E7F6F3;
+}
+
+body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: "Aptos", "Segoe UI", sans-serif;
+}
+
+.loader-overlay { background: rgba(246, 248, 251, 0.94); }
+.spinner-track { border-color: #DDE5E8; }
+.spinner-arc { border-top-color: var(--teal); }
+
+.widget-header,
+.notes-header {
+    background: #0F766E;
+    padding: 14px 16px;
+    box-shadow: 0 4px 14px rgba(15, 118, 110, 0.18);
+}
+
+.stat-label { color: #F8FAFC; font-size: 13px; letter-spacing: 0; }
+.header-divider { color: #7B879D; }
+
+.header-receivables-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 145px;
+    margin-left: auto;
+    margin-right: 10px;
+    padding: 5px 8px;
+    overflow: hidden;
+    border: 1px solid rgba(254, 243, 199, 0.5);
+    border-radius: 999px;
+    background: #FFF0C2;
+    color: #704D00;
+    font-size: 9px;
+    font-weight: 800;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.header-receivables-badge svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+}
+
+.client-badge {
+    background: rgba(45, 212, 191, 0.14);
+    border-color: rgba(94, 234, 212, 0.34);
+    color: #99F6E4;
+    border-radius: 999px;
+}
+
+.header-close-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.header-close-btn:hover { transform: rotate(4deg); }
+.important-info-wrapper { background: #FFF9E8; border-bottom-color: #F4E5B5; }
+.info-toggle-left, .chevron-icon { color: #9A6700; }
+
+.alert-list { padding: 14px; gap: 9px; }
+.alert-rows { gap: 9px; }
+
+.alert-row {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-left-width: 3px;
+    border-radius: 10px;
+    padding: 11px 12px;
+    box-shadow: 0 2px 8px rgba(23, 32, 51, 0.035);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.alert-row:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 5px 14px rgba(23, 32, 51, 0.07);
+    transform: translateY(-1px);
+}
+
+.alert-row.sev-urgent { background: #FFF7F7; border-left-color: #E25555; }
+.alert-row.sev-warn { background: #FFFBF1; border-left-color: #D99A16; }
+.alert-row.sev-ok { background: #F5FBFA; border-left-color: var(--teal); }
+
+.alert-icon {
+    width: 30px;
+    height: 30px;
+    margin-top: 0;
+    padding: 7px;
+    border-radius: 9px;
+    background: #F1F3F6;
+}
+
+.sev-urgent .alert-icon { color: #C63D43; background: #FCE6E6; }
+.sev-warn .alert-icon { color: #A76B00; background: #FFF0C9; }
+.sev-ok .alert-icon { color: var(--teal); background: var(--teal-soft); }
+.alert-title { font-size: 11.5px; color: var(--ink); }
+.alert-message { color: #586477; margin-bottom: 7px; }
+.alert-date { color: #7B8798; }
+.alert-badge { padding: 3px 8px; font-size: 8.5px; }
+.sev-urgent .alert-badge { background: #FCE0E0; color: #A12F37; }
+.sev-warn .alert-badge { background: #FDEBB9; color: #875900; }
+.sev-ok .alert-badge { background: #D9F1EC; color: #0B665E; }
+
+.empty-state { background: radial-gradient(circle at 50% 42%, #FFFFFF 0, var(--canvas) 58%); }
+.notes-view, .notes-list { background: var(--canvas); }
+.note-card { border-radius: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
 }
