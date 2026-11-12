@@ -16,11 +16,9 @@
 
         <header class="head">
           <div class="head__row">
-            <div class="head__left">
-              <div class="head__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12.2 2.4 2.4 4.6-4.8"></path></svg>
-              </div>
-              <h1>Expiry Alerts</h1>
+            <div id="hero" class="hero hidden">
+              <span class="hero__dot"></span>
+              <span id="typeText" class="hero__type"></span>
             </div>
             <div class="head__actions">
               <button type="button" class="sq-btn js-min" aria-label="Minimize" title="Minimize">
@@ -34,10 +32,11 @@
           </div>
 
           <div id="meta" class="head__meta hidden">
-            <div class="head__metarow">
-              <span id="metaText" class="head__metatext"></span>
-              <span id="clientBadge" class="badge" tabindex="0"></span>
-            </div>
+            <span id="jurisWrap" class="juris">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"></rect><path d="M9 7.5h.01M15 7.5h.01M9 11.5h.01M15 11.5h.01"></path><path d="M10 21v-4h4v4"></path></svg>
+              <span id="jurisText"></span>
+            </span>
+            <span id="clientBadge" class="badge" tabindex="0"></span>
             <div id="recvBadge" class="recv hidden"></div>
           </div>
         </header>

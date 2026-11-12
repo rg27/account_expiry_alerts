@@ -13,9 +13,9 @@
     LOAD_TIMEOUT_MS: 10000,
     DEBUG: false,
     FUNCTION_NAME: "account_expiry_alerts",
-    // Flyout sizes in px. Keep FULL in sync with the client script (400 x 500).
-    SIZE_FULL: { width: "400", height: "500" },
-    SIZE_MIN: { width: "400", height: "60" },
+    // Fallback only. The real flyout size is read when the widget loads.
+    SIZE_FULL_FALLBACK: { width: "400px", height: "500px" },
+    MIN_HEIGHT: "65px",
     DATE_FIELDS: [
       { key: "trade_license_end_date", label: "Trade License" },
       { key: "establishment_card_expiry_date", label: "Establishment Card" },
@@ -25,7 +25,7 @@
   };
 
   var TAG = "[Account_Expiry_Alerts]";
-  var state = { accountId: null, hasNotes: false, minimized: false };
+  var state = { accountId: null, hasNotes: false, minimized: false, fullSize: null };
 
   /* ---------------- Logging ---------------- */
 
@@ -77,7 +77,8 @@
     minBtns: document.querySelectorAll(".js-min"),
     backBtn: $("backBtn"),
 
-    meta: $("meta"), metaText: $("metaText"),
+    hero: $("hero"), meta: $("meta"),
+    typeText: $("typeText"), jurisText: $("jurisText"), jurisWrap: $("jurisWrap"),
     clientBadge: $("clientBadge"), recvBadge: $("recvBadge"),
 
     noteStrip: $("note-strip"), noteText: $("noteText"),
@@ -93,6 +94,16 @@
 
   /* ---------------- Boot ---------------- */
 
+  // Remember the real flyout size so "restore" returns to exactly that size.
+  function captureFullSize() {
+    if (state.fullSize || state.minimized) return;
+    var w = window.innerWidth, h = window.innerHeight;
+    if (w > 100 && h > 150) {
+      state.fullSize = { width: w + "px", height: h + "px" };
+    }
+    log("full size captured:", safe(state.fullSize));
+  }
+
   var noDataTimer = setTimeout(function () {
     logErr("PageLoad never fired within " + CONFIG.LOAD_TIMEOUT_MS + "ms");
     showError("No data received",
@@ -102,6 +113,7 @@
 
   ZOHO.embeddedApp.on("PageLoad", function (entity) {
     clearTimeout(noDataTimer);
+    captureFullSize();
     log("PageLoad entity (raw):", safe(entity));
 
     state.accountId = findKey(entity, "account_id") || findKey(entity, "EntityId");
@@ -120,9 +132,10 @@
   el.notesBtn.addEventListener("click", function () { setMode("notes"); });
   el.copyBtn.addEventListener("click", copyDebug);
 
-  /* ---------------- Minimize / restore ---------------- */
+  /* ---------------- Minimize / restore (via ZOHO.CRM.UI.Resize) ---------------- */
 
   function setMinimized(min) {
+    captureFullSize();
     state.minimized = min;
     el.card.classList.toggle("is-min", min);
 
@@ -132,18 +145,18 @@
       b.setAttribute("title", label);
     });
 
-    resizeFlyout(min ? CONFIG.SIZE_MIN : CONFIG.SIZE_FULL);
+    var full = state.fullSize || CONFIG.SIZE_FULL_FALLBACK;
+    resizeFlyout(min
+      ? { width: full.width, height: CONFIG.MIN_HEIGHT }
+      : { width: full.width, height: full.height });
   }
 
   function resizeFlyout(size) {
-    try {
-      var p = ZOHO.CRM.UI.Resize(size);
-      if (p && typeof p.then === "function") {
-        p.then(function (r) { log("resize ok", safe(r)); })
-         .catch(function (e) { logErr("resize failed", e); });
-      }
-    } catch (e) {
-      logErr("resize threw", e);
+    log("resize →", safe(size));
+    if (window.ZOHO && ZOHO.CRM && ZOHO.CRM.UI && typeof ZOHO.CRM.UI.Resize === "function") {
+      ZOHO.CRM.UI.Resize(size)
+        .then(function (res) { log("[Resize] response:", safe(res)); })
+        .catch(function (err) { logErr("[Resize] error:", err); });
     }
   }
 
@@ -282,6 +295,7 @@
     toggle(el.main, mode === "main");
     toggle(el.error, mode === "error");
     toggle(el.meta, mode === "main");
+    toggle(el.hero, mode === "main");
     toggle(el.noteStrip, mode === "main" && state.hasNotes);
   }
 
@@ -310,9 +324,9 @@
   /* ---------------- Header ---------------- */
 
   function renderHeader(acc, outstanding) {
-    var metaText = [acc.account_type, acc.jurisdiction].filter(Boolean).join(" · ");
-    el.metaText.textContent = metaText;
-    toggle(el.metaText, !!metaText);
+    el.typeText.textContent = acc.account_type || "";
+    el.jurisText.textContent = acc.jurisdiction || "";
+    toggle(el.jurisWrap, !!acc.jurisdiction);
 
     var partner = isTrue(acc.contact_partner_only);
     var kind = partner ? "partner" : "direct";
