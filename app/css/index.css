@@ -97,7 +97,7 @@ body::-webkit-scrollbar,
 }
 .card.is-min .screen { flex: none !important; }
 .card.is-min .screen > *:not(.head) { display: none !important; }
-.card.is-min .head__meta { display: none !important; }
+.card.is-min .head__meta, .card.is-min .eb-pop { display: none !important; }
 .card.is-min .head { padding: 10px 14px; }
 
 .ico-max { display: none; }
@@ -524,3 +524,57 @@ body::-webkit-scrollbar,
   word-break: break-all;
   color: #374151;
 }
+
+/* ---------- Blocked-email badge + explanation card ---------- */
+.eb {
+  position: relative; flex-shrink: 0; width: 26px; height: 26px; padding: 0;
+  border: 2px solid #FFFFFF; border-radius: 50%;
+  display: inline-grid; place-items: center; vertical-align: middle;
+  background: linear-gradient(135deg, #FBBF24, #F59E0B 55%, #D97706);
+  color: #FFFFFF; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.35), 0 3px 10px rgba(245, 158, 11, 0.55);
+  animation: ebWiggle 4s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+.eb svg { width: 14px; height: 14px; }
+.eb:hover { background: linear-gradient(135deg, #F59E0B, #D97706); animation-play-state: paused; }
+.eb:focus-visible { outline: 2px solid #B45309; outline-offset: 2px; }
+
+/* two rings that expand outward, one after the other */
+.eb::before, .eb::after {
+  content: ""; position: absolute; inset: -2px; border-radius: 50%;
+  border: 2px solid rgba(245, 158, 11, 0.75); pointer-events: none;
+  animation: ebRing 1.8s ease-out infinite;
+}
+.eb::after { animation-delay: 0.9s; }
+
+@keyframes ebRing {
+  0%   { transform: scale(1);   opacity: 0.9; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+@keyframes ebWiggle {
+  0%, 84%, 100% { transform: rotate(0); }
+  87% { transform: rotate(-16deg); }
+  90% { transform: rotate(14deg); }
+  93% { transform: rotate(-9deg); }
+  96% { transform: rotate(5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eb, .eb::before, .eb::after { animation: none; }
+}
+
+.eb-pop {
+  position: fixed; z-index: 80; width: min(270px, calc(100% - 16px));
+  padding: 11px 13px 12px; background: #FFFFFF; border-radius: 12px;
+  border-left: 4px solid #F59E0B;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.28), 0 0 0 1px rgba(17, 24, 39, 0.05);
+  pointer-events: none; animation: ebFade 0.15s ease;
+}
+.eb-pop::before {
+  content: ""; position: absolute; top: -5px; left: calc(var(--ax, 20px) - 5px);
+  width: 10px; height: 10px; background: #FFFFFF; transform: rotate(45deg);
+}
+.eb-pop--up::before { top: auto; bottom: -5px; }
+.eb-pop__t { font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.25; margin-bottom: 4px; }
+.eb-pop__p { font-size: 11.5px; line-height: 1.5; color: #374151; }
+@keyframes ebFade { from { opacity: 0; } to { opacity: 1; } }

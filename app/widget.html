@@ -38,6 +38,9 @@
             </span>
             <span id="clientBadge" class="badge" tabindex="0"></span>
             <div id="recvBadge" class="recv hidden"></div>
+            <button type="button" id="emailBlock" class="eb hidden" aria-label="PC email is blocked by Zoho CRM">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v6"></path><path d="M12 17h.01"></path></svg>
+            </button>
           </div>
         </header>
 
@@ -120,6 +123,9 @@
           <div id="notes-list" class="group__items"></div>
         </main>
       </div>
+
+      <!-- Blocked-email explanation (shown on hover / click of the header badge) -->
+      <div id="ebPop" class="eb-pop hidden" role="tooltip"></div>
     </div>
 
     <script src="js/app.js"></script>

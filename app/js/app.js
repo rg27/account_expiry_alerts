@@ -2,6 +2,7 @@
    Account Expiry Alerts — Widget Logic
    The client script only passes account_id. This widget calls the Deluge
    function itself and renders its return value.
+   Also runs `Accounts_Unblocked_Email` on open and flags a permanently blocked PC email.
    ========================================================================= */
 
 (function () {
@@ -13,6 +14,9 @@
     LOAD_TIMEOUT_MS: 10000,
     DEBUG: false,
     FUNCTION_NAME: "account_expiry_alerts",
+    EMAIL_UNBLOCK_FUNCTION: "Accounts_Unblocked_Email",
+    EMAIL_BLOCK_TITLE: "PC email is blocked",
+    EMAIL_BLOCK_TEXT: "The PC email for this account is currently blocked by Zoho CRM. If you can confirm with the client that it is still active and working, please coordinate with the CRM team.",
     // Fallback only. The real flyout size is read when the widget loads.
     SIZE_FULL_FALLBACK: { width: "400px", height: "500px" },
     MIN_HEIGHT: "65px",
@@ -25,7 +29,9 @@
   };
 
   var TAG = "[Account_Expiry_Alerts]";
-  var state = { accountId: null, hasNotes: false, minimized: false, fullSize: null };
+  var state = { accountId: null, hasNotes: false, minimized: false, fullSize: null, emailBlocked: false };
+  var ebAnchor = null;     // badge the blocked-email card is attached to
+  var ebPinned = false;    // true after a click, so the card stays open
 
   /* ---------------- Logging ---------------- */
 
@@ -80,6 +86,7 @@
     hero: $("hero"), meta: $("meta"),
     typeText: $("typeText"), jurisText: $("jurisText"), jurisWrap: $("jurisWrap"),
     clientBadge: $("clientBadge"), recvBadge: $("recvBadge"),
+    emailBlock: $("emailBlock"), ebPop: $("ebPop"),
 
     noteStrip: $("note-strip"), noteText: $("noteText"),
     notesBtn: $("notesBtn"), notesCount: $("notesCount"),
@@ -120,6 +127,7 @@
     log("account_id received by widget:", state.accountId);
 
     load();
+    checkEmailBlock();   // runs in parallel, never delays the alerts
   });
 
   ZOHO.embeddedApp.init();
@@ -132,11 +140,109 @@
   el.notesBtn.addEventListener("click", function () { setMode("notes"); });
   el.copyBtn.addEventListener("click", copyDebug);
 
+  /* ---------------- Blocked email check ---------------- */
+
+  // Only a "blocked permanently" answer (email_blocked = true) shows anything;
+  // every other result or error stays silent.
+  function checkEmailBlock() {
+    if (!state.accountId) return;
+    var request = { arguments: JSON.stringify({ account_id: state.accountId }) };
+    ZOHO.CRM.FUNCTIONS.execute(CONFIG.EMAIL_UNBLOCK_FUNCTION, request)
+      .then(function (res) {
+        log("email unblock result:", safe(res));
+        setEmailBlocked(findFlag(res, "email_blocked") === true);
+      })
+      .catch(function (err) {
+        logErr("email unblock call failed (nothing is shown)", err);
+      });
+  }
+
+  // Breadth-first search for a boolean key inside the (possibly string-wrapped) response.
+  function findFlag(root, key) {
+    var queue = [root], seen = [], steps = 0;
+    while (queue.length && steps++ < 300) {
+      var v = queue.shift();
+      if (v === null || v === undefined) continue;
+      if (typeof v === "string") {
+        var parsed = tryParse(v);
+        if (parsed !== null) queue.push(parsed);
+        continue;
+      }
+      if (typeof v !== "object" || seen.indexOf(v) !== -1) continue;
+      seen.push(v);
+      if (typeof v[key] === "boolean") return v[key];
+      Object.keys(v).forEach(function (k) { queue.push(v[k]); });
+    }
+    return null;
+  }
+
+  function setEmailBlocked(on) {
+    state.emailBlocked = !!on;
+    toggle(el.emailBlock, state.emailBlocked);
+    if (!state.emailBlocked) hideEbPop();
+  }
+
+  /* ---- Explanation card: hover, click to pin, click elsewhere or Esc to close ---- */
+
+  function ebTarget(e) {
+    return e.target && e.target.closest ? e.target.closest(".eb") : null;
+  }
+
+  function showEbPop(anchor) {
+    if (!state.emailBlocked || !anchor) return;
+    el.ebPop.innerHTML = "";
+    el.ebPop.appendChild(h("div", "eb-pop__t", CONFIG.EMAIL_BLOCK_TITLE));
+    el.ebPop.appendChild(h("div", "eb-pop__p", CONFIG.EMAIL_BLOCK_TEXT));
+    ebAnchor = anchor;
+    el.ebPop.classList.remove("eb-pop--up");
+    toggle(el.ebPop, true);
+
+    var r = anchor.getBoundingClientRect();
+    var w = el.ebPop.offsetWidth, ph = el.ebPop.offsetHeight;
+    var left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8));
+    var top = r.bottom + 9;
+    if (top + ph > window.innerHeight - 8) {          // no room below: open upwards
+      top = Math.max(8, r.top - ph - 9);
+      el.ebPop.classList.add("eb-pop--up");
+    }
+    el.ebPop.style.left = left + "px";
+    el.ebPop.style.top = top + "px";
+    el.ebPop.style.setProperty("--ax", Math.round(r.left + r.width / 2 - left) + "px");
+  }
+
+  function hideEbPop() {
+    ebAnchor = null;
+    ebPinned = false;
+    toggle(el.ebPop, false);
+  }
+
+  document.addEventListener("mouseover", function (e) {
+    var b = ebTarget(e);
+    if (b && !ebPinned) showEbPop(b);
+  });
+  document.addEventListener("mouseout", function (e) {
+    var b = ebTarget(e);
+    if (b && !ebPinned && !(e.relatedTarget && b.contains(e.relatedTarget))) hideEbPop();
+  });
+  document.addEventListener("click", function (e) {
+    var b = ebTarget(e);
+    if (b) {
+      if (ebPinned && ebAnchor === b) { hideEbPop(); return; }
+      showEbPop(b);
+      ebPinned = true;
+    } else if (ebPinned) {
+      hideEbPop();
+    }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && ebAnchor) hideEbPop(); });
+  document.addEventListener("scroll", function () { if (ebAnchor) hideEbPop(); }, true);
+
   /* ---------------- Minimize / restore (via ZOHO.CRM.UI.Resize) ---------------- */
 
   function setMinimized(min) {
     captureFullSize();
     state.minimized = min;
+    if (min) hideEbPop();
     el.card.classList.toggle("is-min", min);
 
     Array.prototype.forEach.call(el.minBtns, function (b) {
