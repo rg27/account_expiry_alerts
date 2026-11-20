@@ -530,20 +530,19 @@ body::-webkit-scrollbar,
   position: relative; flex-shrink: 0; width: 26px; height: 26px; padding: 0;
   border: 2px solid #FFFFFF; border-radius: 50%;
   display: inline-grid; place-items: center; vertical-align: middle;
-  background: linear-gradient(135deg, #FBBF24, #F59E0B 55%, #D97706);
+  background: linear-gradient(135deg, #F87171, #EF4444 55%, #DC2626);
   color: #FFFFFF; cursor: pointer;
-  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.35), 0 3px 10px rgba(245, 158, 11, 0.55);
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.35), 0 3px 10px rgba(239, 68, 68, 0.55);
   animation: ebWiggle 4s ease-in-out infinite;
   transform-origin: 50% 50%;
 }
 .eb svg { width: 14px; height: 14px; }
-.eb:hover { background: linear-gradient(135deg, #F59E0B, #D97706); animation-play-state: paused; }
-.eb:focus-visible { outline: 2px solid #B45309; outline-offset: 2px; }
+.eb:hover { background: linear-gradient(135deg, #EF4444, #DC2626); animation-play-state: paused; }
+.eb:focus-visible { outline: 2px solid #B91C1C; outline-offset: 2px; }
 
-/* two rings that expand outward, one after the other */
 .eb::before, .eb::after {
   content: ""; position: absolute; inset: -2px; border-radius: 50%;
-  border: 2px solid rgba(245, 158, 11, 0.75); pointer-events: none;
+  border: 2px solid rgba(239, 68, 68, 0.75); pointer-events: none;
   animation: ebRing 1.8s ease-out infinite;
 }
 .eb::after { animation-delay: 0.9s; }
@@ -566,7 +565,7 @@ body::-webkit-scrollbar,
 .eb-pop {
   position: fixed; z-index: 80; width: min(270px, calc(100% - 16px));
   padding: 11px 13px 12px; background: #FFFFFF; border-radius: 12px;
-  border-left: 4px solid #F59E0B;
+  border-left: 4px solid #EF4444;
   box-shadow: 0 12px 32px rgba(17, 24, 39, 0.28), 0 0 0 1px rgba(17, 24, 39, 0.05);
   pointer-events: none; animation: ebFade 0.15s ease;
 }

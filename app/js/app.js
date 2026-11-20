@@ -16,7 +16,7 @@
     FUNCTION_NAME: "account_expiry_alerts",
     EMAIL_UNBLOCK_FUNCTION: "Accounts_Unblocked_Email",
     EMAIL_BLOCK_TITLE: "PC email is blocked",
-    EMAIL_BLOCK_TEXT: "The PC email for this account is currently blocked by Zoho CRM. If you can confirm with the client that it is still active and working, please coordinate with the CRM team.",
+    EMAIL_BLOCK_TEXT: "The PC email for this account is currently blocked by Zoho. If you can confirm with the client that it is still active and working, please coordinate with the CRM team.",
     // Fallback only. The real flyout size is read when the widget loads.
     SIZE_FULL_FALLBACK: { width: "400px", height: "500px" },
     MIN_HEIGHT: "65px",
